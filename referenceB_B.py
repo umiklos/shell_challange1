@@ -40,9 +40,9 @@ class TopicSubscriber():
         ox, oy = origin
         px, py = point
 
-        #qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
+        qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
         qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
-        return  qy
+        return  qx,qy
     
 
 
@@ -52,8 +52,6 @@ class TopicSubscriber():
         self.points[:,0]=self.pc['x']
         self.points[:,1]=self.pc['y']
         self.points[:,2]=self.pc['z']
-
-        
 
         self.p=self.points
         z_mask1=self.p[:,2]>-1.6
@@ -66,7 +64,6 @@ class TopicSubscriber():
         x_mask=np.logical_and(x_mask1,x_mask2)
         
         self.p_xzmasked=self.p_zmasked[x_mask]
-        
         
         scaler=StandardScaler()
         X_scaled=scaler.fit_transform(self.p_xzmasked[:,0:2])
@@ -182,6 +179,9 @@ class TopicSubscriber():
         self.line_X=np.arange(self.vertices_voronoi[:,0].min(),self.vertices_voronoi[:,0].max())[:, np.newaxis]                    
         self.line_y_ransac = ransac.predict(self.line_X)
 
+        self.line_X=np.array([self.line_X[0],self.line_X[-1]])
+        self.line_y_ransac=np.array([self.line_y_ransac[0],self.line_y_ransac[-1]])
+
 
         if self.line_y_ransac[0]<-5:
             while self.line_y_ransac[0]<-3:
@@ -209,94 +209,39 @@ class TopicSubscriber():
         self.slope_ransac_degree=np.rad2deg(math.atan2((self.line_y_ransac[-1]-self.line_y_ransac[0]),(self.line_X[-1]-self.line_X[0])))
         slope_ransac=((self.line_y_ransac[-1])-self.line_y_ransac[0])/((self.line_X[-1])-self.line_X[0])
         intercept_ransac=(self.line_y_ransac[0])-(slope_ransac*self.line_X[0])
-        """
-        self.line_y_ransac2=np.zeros(2)
-        self.line_X2=np.zeros(2)
-        self.line_X2[0]=self.line_X[0]
-        self.line_y_ransac2[0]=self.line_y_ransac[0]
-        self.line_X2[-1]=self.line_X[-1]
-
-        if np.any(intersect_list)==True:
-            y=TopicSubscriber.rotate((self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1]),10)
-            self.line_y_ransac2[-1]=self.line_y_ransac[-1]+y
-            ransac_line2=LineString([(self.line_X[0],self.line_y_ransac2[0]),(self.line_X[-1],self.line_y_ransac2[-1])])
-            intersect_list2=[]
-            for intersect2 in range(len(line_list)):
-                inter2=ransac_line2.intersects(line_list[intersect2])
-                intersect_list2.append(inter2)
-            intersect_list2=np.array(intersect_list2)
-        print(np.any(intersect_list2))
-
-        """
-
-            
-        """
-        if np.any(intersect_list)==True:
-            if slope_ransac>0:
-                while np.any(intersect_list)==False:
-                    y=TopicSubscriber.rotate((self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1]),-10)
-                    self.line_y_ransac[-1]=self.line_y_ransac[-1]+y
-                    ransac_line=LineString([(self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1])])
-                    intersect_list=[]
-                    for intersect in range(len(line_list)):
-                        inter=ransac_line.intersects(line_list[intersect])
-                        intersect_list.append(inter)
-                    intersect_list=np.array(intersect_list)
-            elif slope_ransac<0:
-                while np.any(intersect_list)==False:
-                    y=TopicSubscriber.rotate((self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1]),10)
-                    self.line_y_ransac[-1]=self.line_y_ransac[-1]+y
-                    ransac_line=LineString([(self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1])])
-                    intersect_list=[]
-                    for intersect in range(len(line_list)):
-                        inter=ransac_line.intersects(line_list[intersect])
-                        intersect_list.append(inter)
-                    intersect_list=np.array(intersect_list)
-        slope_ransac=((self.line_y_ransac[-1])-self.line_y_ransac[0])/((self.line_X[-1])-self.line_X[0]) 
-        """
         
-
-
-        #y_ransac=(slope_ransac*self.p_xzmasked[:,0])+intercept_ransac
-        #y_ransac_voronoi=(slope_ransac*self.line_X)+intercept_ransac  
-        """
-        xu=self.line_X[-1]*math.cos(np.deg2rad(75))
-        yu=self.line_y_ransac[-1]*math.sin(np.deg2rad(75))
-        self.uj=np.array([[self.line_X[0],self.line_y_ransac[0]],[xu,yu]])
-        """
-
-        """
-        y=TopicSubscriber.rotate((self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1]),10) 
-        y2=TopicSubscriber.rotate((self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1]),-10) 
-        self.line_X2=np.zeros(2)
-        self.line_y_ransac2=np.zeros(2)
-        self.line_y_ransac3=np.zeros(2)
-        self.line_X2[0]=self.line_X[0]
-        self.line_y_ransac2[0]=self.line_y_ransac[0]
-        self.line_y_ransac3[0]=self.line_y_ransac[0]
-        self.line_X2[-1]=self.line_X[-1]
-        self.line_y_ransac2[-1]=self.line_y_ransac[-1]+y
-        self.line_y_ransac3[-1]=self.line_y_ransac[-1]+y2
-
-        """
-        """
+        
         if np.any(intersect_list)==True:
-            if slope_ransac>0:
-                while np.any(intersect_list)==False:
-                    x,y=TopicSubscriber.rotate((self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1]),np.deg2rad(-1))
-                    self.line_X[-1]=self.line_X[-1]+x
-                    self.line_y_ransac[-1]=self.line_y_ransac[-1]+y                
-            elif slope_ransac<0:
-                while np.any(intersect_list)==False:
-                    x,y=TopicSubscriber.rotate((self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[1]),np.deg2rad(1))
-                    self.line_X[-1]=self.line_X[-1]+x
-                    self.line_y_ransac[-1]=self.line_y_ransac[-1]+y 
-        """
+            try:
+                while np.any(intersect_list)!=False:
+                        if slope_ransac>0:
+                            x,y=TopicSubscriber.rotate((self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1]),np.deg2rad(359))
+                        elif slope_ransac<0:
+                            x,y=TopicSubscriber.rotate((self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1]),np.deg2rad(1))    
+                        self.line_y_ransac[-1]=y
+                        self.line_X[-1]=x
+                        ransac_line=LineString([(self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1])])
+                        intersect_list=[]
+                        for intersect in range(len(line_list)):
+                            inter=ransac_line.intersects(line_list[intersect])
+                            intersect_list.append(inter)
+                        intersect_list=np.array(intersect_list)
+            except:
+                None
 
+                    #print(np.any(intersect_list))
+
+        
+        slope_ransac=((self.line_y_ransac[-1])-self.line_y_ransac[0])/((self.line_X[-1])-self.line_X[0])
+        intercept_ransac=(self.line_y_ransac[0])-(slope_ransac*self.line_X[0])
+            
+
+
+        y_ransac=(slope_ransac*self.p_xzmasked[:,0])+intercept_ransac
+        y_ransac_voronoi=(slope_ransac*self.line_X)+intercept_ransac  
+        
             
         y_ransac_vertices=(slope_ransac*self.vertices_hulls[:,0])+intercept_ransac
-
-
         
 
         y_vertices_left_mask=self.vertices_hulls[:,1]>y_ransac_vertices
@@ -309,11 +254,11 @@ class TopicSubscriber():
         left_side=df.sort_values(0).to_numpy()
         df2=pd.DataFrame(right_side)
         right_side=df2.sort_values(0).to_numpy()
-
+        
 
         lower_left= []
         
-        for pp in left_side:
+        for pp in reversed(left_side):
             while len(lower_left) >= 2 and TopicSubscriber.cross(lower_left[-2], lower_left[-1], pp)\
                     <= 0:
                 lower_left.pop()
@@ -350,29 +295,122 @@ class TopicSubscriber():
         self.upper_right=np.array(upper_right)
         self.lower_right=np.array(lower_right)
 
+        left_polygons=np.concatenate((self.upper_left,self.lower_left))
+        right_polygons=np.concatenate((self.upper_right,self.lower_right))
+
+        
+
+        polygon_left=Polygon(left_polygons)
+        polygon_right=Polygon(right_polygons)
+        xl,yl=polygon_left.exterior.xy
+        xr,yr=polygon_right.exterior.xy
+
+        mask_vor_L, mask_vor_R=[],[]
+        for ib in range(len(self.vertices_voronoi)):
+            vp=Point(self.vertices_voronoi[ib,0],self.vertices_voronoi[ib,1])
+            lp=polygon_left.contains(vp)
+            rp=polygon_right.contains(vp)
+            mask_vor_L.append(lp)
+            mask_vor_R.append(rp)
+        mask_vor_L=np.array(mask_vor_L)
+        mask_vor_R=np.array(mask_vor_R)
+        mask_vertices=np.logical_or(mask_vor_L,mask_vor_R)
+
+        
+
+        
+        """
+        slopes_L,intercepts_L=[],[]
+        for dg in range(1,len(self.upper_left)):
+            slope_L,intercept_L,_,_,_=stats.linregress([self.upper_left[dg-1],self.upper_left[dg]])
+            slopes_L.append(slope_L)
+            intercepts_L.append(intercept_L)
+
+        vertices_left_upper=[]
+        for dc in range(1,len(self.upper_left)):
+            abh=self.vertices_voronoi[np.logical_and(self.vertices_voronoi[:,0]>self.upper_left[dc-1][0],self.vertices_voronoi[:,0]<self.upper_left[dc][0])]
+            vertices_left_upper.append(abh)
+        self.vertices_left_upper=np.array(np.concatenate(vertices_left_upper))
+        dfv=pd.DataFrame(self.vertices_left_upper)
+        self.vertices_left_upper=dfv.sort_values(0).to_numpy()
+
+        masks_L=[]
+        for dg in range(1,len(self.upper_left)):
+            abc=np.logical_and(self.vertices_voronoi[:,0]>self.upper_left[dg-1][0],self.vertices_voronoi[:,0]<self.upper_left[dg][0])
+            masks_L.append(abc)
+
+        masks_L=np.array(masks_L)
+
+        y_upper_L=[]
+        for dn in range(len(masks_L)):
+            y_u=(self.vertices_voronoi[masks_L[dn]][:,0]*slopes_L[dn])+intercepts_L[dn]
+            y_upper_L.append(y_u)
+
+        self.y_upper_L=np.array(np.concatenate(y_upper_L))
+
         
 
         #self.upper_right[0,1]=self.upper_right[1,1]
         #self.upper_right[-1,1]=self.upper_right[-2,1]
         #self.upper_left[0,1]=self.upper_left[1,1]
         #self.upper_left[-1,1]=self.upper_left[-2,1]
+        
+        slopes_R,intercepts_R=[],[]
+        for dl in range(1,len(self.upper_right)):
+            slope_R,intercept_R,_,_,_=stats.linregress([self.upper_right[dl-1],self.upper_right[dl]])
+            slopes_R.append(slope_R)
+            intercepts_R.append(intercept_R)
 
+        vertices_right_upper=[]
+        for dc in range(1,len(self.upper_right)):
+            aba=self.vertices_voronoi[np.logical_and(self.vertices_voronoi[:,0]>self.upper_right[dc][0],self.vertices_voronoi[:,0]<self.upper_right[dc-1][0])]
+            vertices_right_upper.append(aba)
+        self.vertices_right_upper=np.array(np.concatenate(vertices_right_upper))
+        dff=pd.DataFrame(self.vertices_right_upper)
+        self.vertices_right_upper=dff.sort_values(0).to_numpy()
 
+        masks_R=[]
+        for dl in range(1,len(self.upper_right)):
+            dbc=np.logical_and(self.vertices_voronoi[:,0]>self.upper_right[dl][0],self.vertices_voronoi[:,0]<self.upper_right[dl-1][0])
+            masks_R.append(dbc)
 
+        masks_R=np.array(masks_R)
+
+        y_upper_R=[]
+        for dr in range(len(masks_R)):
+            y_ur=(self.vertices_voronoi[masks_R[dr]][:,0]*slopes_R[dr])+intercepts_R[dr]
+            y_upper_R.append(y_ur)
+
+        self.y_upper_R=np.array(np.concatenate(y_upper_R))
+
+        
+        
+        if self.vertices_right_upper.shape==self.vertices_voronoi.shape:
+            print("ok")
+        else:
+
+            print(self.vertices_right_upper.shape,self.vertices_voronoi.shape)
+        
+
+        
+        
         slope_L,intercept_L,_,_,_=stats.linregress(self.upper_left)
         y_upper_L=(slope_L*self.vertices_voronoi[:,0])+intercept_L
+        
         slope_R,intercept_R,_,_,_=stats.linregress(self.upper_right)
         y_upper_R=(slope_R*self.vertices_voronoi[:,0])+intercept_R
+        
+
 
         mask_vertices1=self.vertices_voronoi[:,1]<y_upper_L
         mask_vertices2=self.vertices_voronoi[:,1]>y_upper_R
         mask_vertices=np.logical_and(mask_vertices1,mask_vertices2)
-
+        """
         
-        self.vertices_voronoi=self.vertices_voronoi[mask_vertices]
+        self.vertices_voronoi=self.vertices_voronoi[~mask_vertices]
 
         torles_ridges=[]
-        for ha in vertices_index[np.where(mask_vertices==False)]:
+        for ha in vertices_index[np.where(mask_vertices==True)]:
             ab=np.where(ridges==ha)[0]
             torles_ridges.append(ab)
 
@@ -382,8 +420,8 @@ class TopicSubscriber():
             ridges=np.delete(ridges,torles_ridges,0)
 
             self.vor_vertices_ridges=vor.vertices[ridges]
-       
-
+        
+        
 
     #def current_velocitycallback(self,msg):
         """
@@ -424,7 +462,7 @@ class TopicSubscriber():
          
     
         #plt.plot(self.vector[0],self.vector[1],c='b')
-        plt.plot(self.line_X,self.line_y_ransac,c='r')
+        #plt.plot(self.line_X,self.line_y_ransac,c='r')
         #plt.plot(self.uj[:,0],self.uj[:,1],c='m')
         #plt.plot(self.line_X2,self.line_y_ransac2,c='c')
         #plt.plot(self.line_X2,self.line_y_ransac3,c='m')
@@ -434,18 +472,24 @@ class TopicSubscriber():
         #plt.plot(self.vertices_voronoi[:,0],y_upper_L,c='m')
         #plt.scatter(left_side[:,0],left_side[:,1])
         #plt.scatter(right_side[:,0],right_side[:,1])
-        #plt.plot(self.upper_left[:,0],self.upper_left[:,1],c='r')
-        plt.plot(self.lower_right[:,0],self.lower_right[:,1],c='r')
-        plt.plot(self.upper_right[:,0],self.upper_right[:,1],c='b')
         plt.scatter(self.upper_right[:,0],self.upper_right[:,1],c='b')
-        plt.scatter(self.upper_left[:,0],self.upper_left[:,1],c='r')
+        
+        #plt.plot(self.lower_right[:,0],self.lower_right[:,1],c='r')
+        #plt.plot(self.upper_right[:,0],self.upper_right[:,1],c='b')
+        #plt.plot(self.lower_left[:,0],self.lower_left[:,1],c='c')
+        #plt.plot(self.upper_left[:,0],self.upper_left[:,1],c='m')
+        #plt.scatter(self.upper_left[:,0],self.upper_left[:,1],c='m')
         #plt.plot(self.vertices_voronoi[:,0],y_upper_R,c='c')
         #plt.plot(self.vertices_voronoi[:,0],y_upper_L,c='orange')
         plt.scatter(self.vertices_voronoi[:,0],self.vertices_voronoi[:,1],c='g')
+        #plt.plot(self.vertices_right_upper[:,0],self.y_upper_R,c='y')
+        plt.plot(xl,yl,c="r")
+        plt.plot(xr,yr,c="b")
+        
                 
         plt.axis('equal')
         plt.show()
-    
+        
 
 
 def callback():
