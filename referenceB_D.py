@@ -23,6 +23,8 @@ from shapely.geometry import Point, Polygon
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from shapely.geometry import LineString
+from visualization_msgs.msg import Marker
+from visualization_msgs.msg import MarkerArray
 
 front_left_distance_from_Lidar=(1.869,0.763) 
 rear_left_distance_from_Lidar=(-1.844,0.763)
@@ -34,7 +36,10 @@ front_right_distance_from_Lidar=(1.869,-0.7745)
 class TopicSubscriber():
     global front_left_distance_from_Lidar,rear_left_distance_from_Lidar,rear_right_distance_from_Lidar,front_right_distance_from_Lidar
     def __init__(self):
-        #self.p=
+        #self.points=[]
+        
+        self.velodyne_sub=rospy.Subscriber("/velodyne_points", senmsg.PointCloud2,self.pointcloudcallback)
+        self.velocity_sub=rospy.Subscriber("/current_velocity", geomsg.TwistStamped,self.current_velocitycallback)
         self.merge=None
         self.vertices_hulls=[]
     
@@ -51,14 +56,14 @@ class TopicSubscriber():
         qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
         return  qx,qy
     
-
-    def pointcloudcallback(self,data):
-        self.pc = ros_numpy.numpify(data)
-        self.points=np.zeros((self.pc.shape[0],3))
-        self.points[:,0]=self.pc['x']
-        self.points[:,1]=self.pc['y']
-        self.points[:,2]=self.pc['z']
-      
+    if not self.points is None:
+        def pointcloudcallback(self,data):
+            self.pc = ros_numpy.numpify(data)
+            self.points=np.zeros((self.pc.shape[0],3))
+            self.points[:,0]=self.pc['x']
+            self.points[:,1]=self.pc['y']
+            self.points[:,2]=self.pc['z']
+    
         
     def current_velocitycallback(self,msg):
         
@@ -140,15 +145,13 @@ class TopicSubscriber():
 
         self.tri=Delaunay(self.vertices_hulls)
         vor=Voronoi(self.vertices_hulls)
+       
 
-        mask=self.tri.find_simplex(vor.vertices)!=-1          #kordináták amik a delauney háromszögön belül vannak
-        self.vertices_voronoi=vor.vertices[mask]
-
-        x_car=(-intercept_c+self.vertices_voronoi[:,1])/slope_c   
-        x_car_mask=self.vertices_voronoi[:,0]>x_car
-        self.vertices_voronoi=self.vertices_voronoi[x_car_mask]
-
-        index_del=np.asarray(np.where(mask==False)).reshape(-1)
+        mask_delauney=self.tri.find_simplex(vor.vertices)!=-1          #kordináták amik a delauney háromszögön belül vannak
+        self.vertices_voronoi=vor.vertices[mask_delauney]   
+        
+        
+        index_del=np.asarray(np.where(mask_delauney==False)).reshape(-1)
 
         torles1_vertices=[]
         for iji in range(len(index_del)):
@@ -184,7 +187,7 @@ class TopicSubscriber():
                 joining_degree_ridges_id.append(bbb)
 
         joining_degree_ridges_id=np.array(joining_degree_ridges_id)
-        index2=np.where(joining_degree_ridges_id==1)
+        index2=np.where(joining_degree_ridges_id<=1)
         index2=np.array(index2).reshape(-1)
         matrix=np.zeros(((len(index2)),))
 
@@ -208,6 +211,12 @@ class TopicSubscriber():
 
         self.line_X=np.array([self.line_X[0],self.line_X[-1]])
         self.line_y_ransac=np.array([self.line_y_ransac[0],self.line_y_ransac[-1]])
+
+        """
+        if self.line_X[-1]<25:
+            while self.line_X[-1]<25:
+                self.line_X[-1]+1
+        """
 
 
         if self.line_y_ransac[0]<-5:
@@ -239,7 +248,9 @@ class TopicSubscriber():
                         elif slope_ransac<0:
                             x,y=TopicSubscriber.rotate((self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1]),np.deg2rad(1))    
                         self.line_y_ransac[-1]=y
-                        self.line_X[-1]=x
+                        while x<25:
+                            x=x+1
+                            self.line_X[-1]=x
                         ransac_line=LineString([(self.line_X[0],self.line_y_ransac[0]),(self.line_X[-1],self.line_y_ransac[-1])])
                         intersect_list=[]
                         for intersect in range(len(line_list)):
@@ -326,9 +337,8 @@ class TopicSubscriber():
         mask_vor_L=np.array(mask_vor_L)
         mask_vor_R=np.array(mask_vor_R)
         mask_vertices=np.logical_or(mask_vor_L,mask_vor_R)    
-
+        
         self.vertices_voronoi=self.vertices_voronoi[~mask_vertices]
-
 
         torles_ridges=[]
         for ha in vertices_index[np.where(mask_vertices==True)]:
@@ -341,6 +351,24 @@ class TopicSubscriber():
             ridges=np.delete(ridges,torles_ridges,0)
 
             self.vor_vertices_ridges=vor.vertices[ridges]
+
+        x_car=(-intercept_c+self.vertices_voronoi[:,1])/slope_c 
+        x_car_mask=self.vertices_voronoi[:,0]>x_car
+
+        self.vertices_voronoi=self.vertices_voronoi[x_car_mask]
+        """
+        torles_ridges2=[]
+        for ha2 in vertices_index[np.where(x_car_mask==False)]:
+            ab2=np.where(ridges==ha2)[0]
+            torles_ridges2.append(ab2)
+
+        torles_ridges2=np.array(torles_ridges2)
+        if len(torles_ridges2)>0:
+            torles_ridges2=np.unique(np.concatenate(torles_ridges2))
+            ridges=np.delete(ridges,torles_ridges2,0)
+
+            self.vor_vertices_ridges=vor.vertices[ridges]
+        """
 
     
 
@@ -371,7 +399,7 @@ class TopicSubscriber():
          
     
         #plt.plot(self.vector[0],self.vector[1],c='b')
-        #plt.plot(self.line_X,self.line_y_ransac,c='r')
+        plt.plot(self.line_X,self.line_y_ransac,c='r')
         #plt.plot(self.uj[:,0],self.uj[:,1],c='m')
         #plt.plot(self.line_X2,self.line_y_ransac2,c='c')
         #plt.plot(self.line_X2,self.line_y_ransac3,c='m')
@@ -396,7 +424,7 @@ class TopicSubscriber():
         plt.plot(self.xr,self.yr,c="b")
         plt.plot(self.xc,self.yc,c='k')
         plt.plot(self.vector[0],self.vector[1],c='m')
-        #plt.plot(x_car,self.vertices_voronoi[:,1],c='y')
+        #plt.plot(x_car,self.vertices_voronoi,c='y')
                 
         plt.axis('equal')
         plt.show()
@@ -407,14 +435,45 @@ def callback():
     Ts=TopicSubscriber()    
 
     rospy.init_node("listener", anonymous=True)
-    rospy.Subscriber("/velodyne_points", senmsg.PointCloud2,Ts.pointcloudcallback)
-    rospy.Subscriber("/current_velocity", geomsg.TwistStamped,Ts.current_velocitycallback)
+    velodyne_sub=rospy.Subscriber("/velodyne_points", senmsg.PointCloud2,Ts.pointcloudcallback)
+    velocity_sub=rospy.Subscriber("/current_velocity", geomsg.TwistStamped,Ts.current_velocitycallback)
     rospy.spin()
+    """
+    topic = 'Reference_line'
+    publisher = rospy.Publisher(topic, MarkerArray,queue_size=2)
+    rate=rospy.Rate(2)
 
+    markerArray= MarkerArray()
+    marker = Marker()
+    marker.header.frame_id = "/velodyne"
+    marker.type = marker.SPHERE_LIST
+    marker.action = marker.ADD
+    marker.scale.x = 0.1
+    marker.scale.y = 0.1
+    marker.scale.z = 0.1
+    marker.color.a = 1.0
+    marker.color.r = 0.0
+    marker.color.b = 0.0
+    marker.color.g = 255.0
 
+    while not rospy.is_shutdown():
+        marker.lifetime=rospy.Duration(0)
+
+        marker.pose.position.x=Ts.vertices_voronoi[:,0]
+        marker.pose.position.y=Ts.vertices_voronoi[:,1]
+        marker.pose.position.z=0
+
+        publisher.publish(marker)
+        print(publisher)
+
+        rate.sleep()
+    """
 if __name__ == '__main__':
     try:
         callback()
         
     except rospy.ROSInterruptException:
         pass
+
+
+    
