@@ -13,7 +13,7 @@ from sklearn import linear_model
 from scipy.spatial import Voronoi
 import visualization_msgs.msg as vismsg
 import geometry_msgs.msg as geomsg
-from shapely.ops import shared_paths
+
 
 reference_line=None
 polygon=None
@@ -34,23 +34,8 @@ class reference():
 
         if (len(points))>1: 
             clusters, n_clusters=self.get_euclidean_clustering(points,0.45,10)
-            
-            
-            if n_clusters>1:
-                segmented_points=np.column_stack((points[:,0:2],clusters))
-                index,count=np.unique(clusters,return_counts=True)
-                selected_column=np.where(segmented_points[:,2]==index[np.argmax(count)])
-                selected_points=segmented_points[selected_column]
-                
-            elif n_clusters==1 and -1 in set(clusters):
-                segmented_points=np.column_stack((points[:,0:2],clusters))
-                selected_column=np.where(segmented_points[:,2]==0)
-                selected_points=segmented_points[selected_column]
-            elif n_clusters==0:
-                selected_points=[]                
-            else:
-                selected_points=points
-                        
+            selected_points=self.get_selected_points(points,clusters,n_clusters)          
+                                    
 
             if len(selected_points)>2:
 
@@ -67,11 +52,8 @@ class reference():
                     pp0,pp1=self.get_p0(rotated_rect_with_origo,origo)
                     p0,p1=self.get_p0(rotated_rect,origo)
 
-                    
-                    p0c=p0.centroid
-                    p1c=p1.centroid
 
-                    midline=sg.LineString([p0c,p1c])
+                    midline=sg.LineString([p0.centroid,p1.centroid])
                     polygon_first=self.get_polygon_first_side(midline,line,p0)
 
                     min_distance=p0.hausdorff_distance(polygon_first)
@@ -120,7 +102,24 @@ class reference():
             n_clusters=len(labels)
         
         return clusters, n_clusters
-    
+
+    def get_selected_points(self,points,clusters,n_clusters):
+        if n_clusters>1:
+            segmented_points=np.column_stack((points[:,0:2],clusters))
+            index,count=np.unique(clusters,return_counts=True)
+            selected_column=np.where(segmented_points[:,2]==index[np.argmax(count)])
+            selected_points=segmented_points[selected_column]
+            
+        elif n_clusters==1 and -1 in set(clusters):
+            segmented_points=np.column_stack((points[:,0:2],clusters))
+            selected_column=np.where(segmented_points[:,2]==0)
+            selected_points=segmented_points[selected_column]
+        elif n_clusters==0:
+            selected_points=[]                
+        else:
+            selected_points=points
+        return selected_points
+
     def get_p0(self,rotated_rect,origo):
         
         p0,p1,p2,p3=self.get_p_coordinates(rotated_rect)
@@ -158,8 +157,8 @@ class reference():
     def cross(self,p0,polygon,min_distance,max_distance):
         
         iterator=self.get_iterator(min_distance,max_distance)
-        crosslines=[]
-        points=[]
+        crosslines,points=[],[]
+        
         if len(iterator)>2:
             for i in range(len(iterator)):
                 crosslines.append(p0.parallel_offset(iterator[i],'left').intersection(polygon))
@@ -269,11 +268,11 @@ def listener():
             mark_r.points=[]
             if type(polygon) is sg.polygon.Polygon:
                 for l in polygon.exterior.coords[1:]: # the last point is the same as the first
-                    p = geomsg.Point(); p.x = l[0]; p.y = l[1]; p.z = -0.3
+                    p = geomsg.Point(); p.x = l[0]; p.y = l[1]; p.z = -1.3
                     mark_f.points.append(p)
             if  reference_line is not None:
                 for j in reference_line:
-                    p=geomsg.Point(); p.x=j[0]; p.y=j[1]; p.z=-0.3
+                    p=geomsg.Point(); p.x=j[0]; p.y=j[1]; p.z=-1.3
                     mark_r.points.append(p)
             else:
                 rospy.logwarn("no reference line can be created")
