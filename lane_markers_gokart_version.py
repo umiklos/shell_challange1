@@ -229,6 +229,7 @@ def listener():
     rate=rospy.Rate(10)
 
     mark_f = vismsg.Marker()
+    mark_f.header.stamp=rospy.Time.now()
     mark_f.header.frame_id = "/right_os1/os1_lidar"
     mark_f.type = mark_f.LINE_STRIP
     mark_f.action = mark_f.ADD
@@ -242,7 +243,7 @@ def listener():
     mark_f.pose.position.x = mark_f.pose.position.y = mark_f.pose.position.z = 0.0
 
     mark_r = vismsg.Marker()
-    
+    mark_r.header.stamp=rospy.Time.now()
     mark_r.header.frame_id = "/right_os1/os1_lidar"
     mark_r.type = mark_r.LINE_STRIP
     mark_r.action = mark_r.ADD
@@ -258,8 +259,8 @@ def listener():
    
     
     while not rospy.is_shutdown():
-        mark_r.header.stamp=rospy.Time.now()
-        mark_f.header.stamp=rospy.Time.now()
+        
+        
         if polygon is not None and polygon_with_origo is not None :
 
         
